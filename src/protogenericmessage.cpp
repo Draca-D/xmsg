@@ -47,14 +47,15 @@ ProtoGenericMessage::~ProtoGenericMessage() {
   }
 }
 
-const member ProtoGenericMessage::get_member(const std::string &member_name,
-                                             const XMSG::Type expected_type) {
+const RawMemberWrapper
+ProtoGenericMessage::get_member(const std::string &member_name,
+                                const XMSG::Type expected_type) const {
   (void)expected_type; // unused for now, may be used for type safety
 
   auto field = find_field(member_name);
 
   if (!field) {
-    return {nullptr, XMSG::Type::NOTSET};
+    return build_wrapper(nullptr, XMSG::Type::NOTSET);
   }
 
   auto reflection = message_->GetReflection();
@@ -62,7 +63,7 @@ const member ProtoGenericMessage::get_member(const std::string &member_name,
 
   if (field->is_optional()) {
     if (!message_->GetReflection()->HasField(*message_, field)) {
-      return {nullptr, XMSG::Type::NOTSET};
+      return build_wrapper(nullptr, XMSG::Type::NOTSET);
     }
   }
 
@@ -76,11 +77,11 @@ const member ProtoGenericMessage::get_member(const std::string &member_name,
     data = extract(reflection, field);
   }
 
-  return {data, type};
+  return build_wrapper(data, type);
 }
 
 void ProtoGenericMessage::set_member(const std::string &member_name,
-                                     XMSG::member data) {
+                                     const RawMemberWrapper &data) {
   auto field = find_field(member_name);
 
   if (!field) {
@@ -91,14 +92,14 @@ void ProtoGenericMessage::set_member(const std::string &member_name,
   auto reflection = message_->GetReflection();
 
   if (field->is_repeated()) {
-    set_repeated(data.data, reflection, field);
+    set_repeated(data.get_raw(), reflection, field);
   } else {
-    set(data.data, reflection, field);
+    set(data.get_raw(), reflection, field);
   }
 }
 
 const google::protobuf::FieldDescriptor *
-ProtoGenericMessage::find_field(const std::string name) {
+ProtoGenericMessage::find_field(const std::string name) const {
   auto desc = message_->GetDescriptor();
 
   for (int field = 0; field < desc->field_count(); field++) {
@@ -135,9 +136,9 @@ void ProtoGenericMessage::enumerate_members() {
   }
 }
 
-void *
-ProtoGenericMessage::extract(const google::protobuf::Reflection *reflection,
-                             const google::protobuf::FieldDescriptor *field) {
+void *ProtoGenericMessage::extract(
+    const google::protobuf::Reflection *reflection,
+    const google::protobuf::FieldDescriptor *field) const {
   using namespace google::protobuf;
 
   void *data;
@@ -187,7 +188,7 @@ ProtoGenericMessage::extract(const google::protobuf::Reflection *reflection,
 
 void *ProtoGenericMessage::extract_repeated(
     const google::protobuf::Reflection *reflection,
-    const google::protobuf::FieldDescriptor *field) {
+    const google::protobuf::FieldDescriptor *field) const {
   using namespace google::protobuf;
 
   void *data;
@@ -332,68 +333,68 @@ void ProtoGenericMessage::set(void *data,
 }
 
 void ProtoGenericMessage::set_repeated(
-    void *data, const google::protobuf::Reflection *reflection,
+    const void *data, const google::protobuf::Reflection *reflection,
     const google::protobuf::FieldDescriptor *field) {
   using namespace google::protobuf;
 
   int cpp_type = field->cpp_type();
 
   if (cpp_type == FieldDescriptor::CPPTYPE_INT32) {
-    auto array = static_cast<std::vector<int64_t> *>(data);
+    auto array = static_cast<const std::vector<int64_t> *>(data);
     for (size_t x = 0; x < array->size(); x++) {
       reflection->AddInt32(message_, field, static_cast<int32_t>(array->at(x)));
     }
   } else if (cpp_type == FieldDescriptor::CPPTYPE_UINT32) {
-    auto array = static_cast<std::vector<uint64_t> *>(data);
+    auto array = static_cast<const std::vector<uint64_t> *>(data);
 
     for (size_t x = 0; x < array->size(); x++) {
       reflection->AddUInt32(message_, field,
                             static_cast<uint32_t>(array->at(x)));
     }
   } else if (cpp_type == FieldDescriptor::CPPTYPE_INT64) {
-    auto array = static_cast<std::vector<int64_t> *>(data);
+    auto array = static_cast<const std::vector<int64_t> *>(data);
 
     for (size_t x = 0; x < array->size(); x++) {
       reflection->AddInt64(message_, field, array->at(x));
     }
   } else if (cpp_type == FieldDescriptor::CPPTYPE_UINT64) {
-    auto array = static_cast<std::vector<uint64_t> *>(data);
+    auto array = static_cast<const std::vector<uint64_t> *>(data);
 
     for (size_t x = 0; x < array->size(); x++) {
       reflection->AddUInt64(message_, field, array->at(x));
     }
   } else if (cpp_type == FieldDescriptor::CPPTYPE_DOUBLE) {
-    auto array = static_cast<std::vector<double> *>(data);
+    auto array = static_cast<const std::vector<double> *>(data);
 
     for (size_t x = 0; x < array->size(); x++) {
       reflection->AddDouble(message_, field, array->at(x));
     }
   } else if (cpp_type == FieldDescriptor::CPPTYPE_FLOAT) {
-    auto array = static_cast<std::vector<double> *>(data);
+    auto array = static_cast<const std::vector<double> *>(data);
 
     for (size_t x = 0; x < array->size(); x++) {
       reflection->AddFloat(message_, field, static_cast<float>(array->at(x)));
     }
   } else if (cpp_type == FieldDescriptor::CPPTYPE_BOOL) {
-    auto array = static_cast<std::vector<bool> *>(data);
+    auto array = static_cast<const std::vector<bool> *>(data);
 
     for (size_t x = 0; x < array->size(); x++) {
       reflection->AddBool(message_, field, array->at(x));
     }
   } else if (cpp_type == FieldDescriptor::CPPTYPE_ENUM) {
-    auto array = static_cast<std::vector<int32_t> *>(data);
+    auto array = static_cast<const std::vector<int32_t> *>(data);
 
     for (size_t x = 0; x < array->size(); x++) {
       reflection->AddEnumValue(message_, field, array->at(x));
     }
   } else if (cpp_type == FieldDescriptor::CPPTYPE_STRING) {
-    auto array = static_cast<std::vector<std::string> *>(data);
+    auto array = static_cast<const std::vector<std::string> *>(data);
 
     for (size_t x = 0; x < array->size(); x++) {
       reflection->AddString(message_, field, array->at(x));
     }
   } else if (cpp_type == FieldDescriptor::CPPTYPE_MESSAGE) {
-    auto array = static_cast<std::vector<GenericMessage *> *>(data);
+    auto array = static_cast<const std::vector<GenericMessage *> *>(data);
 
     for (size_t x = 0; x < array->size(); x++) {
       auto proto_msg = dynamic_cast<ProtoGenericMessage *>(array->at(x));
@@ -408,7 +409,7 @@ void ProtoGenericMessage::set_repeated(
 }
 
 Type ProtoGenericMessage::protoTypeToType(
-    google::protobuf::FieldDescriptor::CppType protoType) {
+    google::protobuf::FieldDescriptor::CppType protoType) const noexcept {
   using namespace google::protobuf;
 
   int cpp_type = protoType;

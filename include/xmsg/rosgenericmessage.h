@@ -34,9 +34,10 @@ public:
   ROSGenericMessage(const std::string &type, const void *message);
   virtual ~ROSGenericMessage() override;
 
-  const XMSG::member get_member(const std::string &member_name,
-                                const Type expected_type) override;
-  void set_member(const std::string &member_name, XMSG::member data) override;
+  const XMSG::RawMemberWrapper get_member(const std::string &member_name,
+                                const Type expected_type) const override;
+  void set_member(const std::string &member_name,
+                  const XMSG::RawMemberWrapper &data) override;
 
   void deep_memcpy_to(void *data);
   void deep_memcpy_from(const void *data);
@@ -61,17 +62,17 @@ private: // members
   const rosidl_typesupport_introspection_cpp::MessageMembers *intro_msg_;
 
 private: // methods
-  GenericMessage *New(const std::string &type) override {
+  GenericMessage *New(const std::string &type) const override {
     return new ROSGenericMessage(type);
   }
 
   void enumerate_members();
   void *
   extract(const rosidl_typesupport_introspection_cpp::MessageMember &member,
-          const void *sub_msg);
+          const void *sub_msg) const;
   void *extract_array(
       const rosidl_typesupport_introspection_cpp::MessageMember &member,
-      const void *sub_msg);
+      const void *sub_msg) const;
 
   void set(const rosidl_typesupport_introspection_cpp::MessageMember &member,
            void *ros_member_loc, void *data);
@@ -79,14 +80,15 @@ private: // methods
       const rosidl_typesupport_introspection_cpp::MessageMember &member,
       void *ros_member_loc, void *data);
 
-  XMSG::Type member_to_type(uint8_t type);
+  XMSG::Type member_to_type(uint8_t type) const noexcept;
 
-  int find_member_pos(const std::string &member_name);
+  int find_member_pos(const std::string &member_name) const;
 
-  void set_member_at(const std::string &member_name, XMSG::member data,
-                     void *at);
-  const XMSG::member get_member_at(const std::string &member_name,
-                                   const Type expected_type, const void *at);
+  void set_member_at(const std::string &member_name,
+                     const XMSG::RawMemberWrapper &data, void *at);
+  const XMSG::RawMemberWrapper get_member_at(const std::string &member_name,
+                                   const Type expected_type,
+                                   const void *at) const;
   void cleanup(void *ros_msg,
                const rosidl_typesupport_introspection_cpp::MessageMembers
                    *introspected_msg);

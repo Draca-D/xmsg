@@ -29,11 +29,13 @@ add_library(GenericMessage SHARED
     src/jsongenericmessage.cpp
     src/protogenericmessage.cpp
     src/rosgenericmessage.cpp
+    src/rawmemberwrapper.cpp
 
     include/xmsg/genericmessage.h
     include/xmsg/jsongenericmessage.h
     include/xmsg/protogenericmessage.h
     include/xmsg/rosgenericmessage.h
+    include/xmsg/rawmemberwrapper.h
 
     include/xmsg/Configuration/genericmessageconfigurator.h
     include/xmsg/Configuration/jsongenericconfigurator.h
@@ -50,12 +52,12 @@ target_include_directories(GenericMessage PUBLIC
    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
    $<INSTALL_INTERFACE:include>)
 
-target_link_libraries(GenericMessage
+target_link_libraries(GenericMessage PUBLIC
   protobuf
   nlohmann_json
 )
 
-ament_target_dependencies(GenericMessage
+ament_target_dependencies(GenericMessage PUBLIC
   rclcpp
   std_msgs
 )

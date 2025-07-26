@@ -23,9 +23,10 @@ public:
 
   ~ProtoGenericMessage() override;
 
-  const XMSG::member get_member(const std::string &member_name,
-                                const Type expected_type) override;
-  void set_member(const std::string &member_name, XMSG::member data) override;
+  const XMSG::RawMemberWrapper get_member(const std::string &member_name,
+                                const Type expected_type) const override;
+  void set_member(const std::string &member_name,
+                  const XMSG::RawMemberWrapper &data) override;
 
   google::protobuf::Message *get_message_reference() { return message_; }
 
@@ -40,24 +41,26 @@ private: // members
   google::protobuf::Message *message_;
 
 private: // methods
-  const google::protobuf::FieldDescriptor *find_field(const std::string name);
+  const google::protobuf::FieldDescriptor *
+  find_field(const std::string name) const;
 
   void enumerate_members();
 
   void *extract(const google::protobuf::Reflection *reflection,
-                const google::protobuf::FieldDescriptor *field);
+                const google::protobuf::FieldDescriptor *field) const;
   void *extract_repeated(const google::protobuf::Reflection *reflection,
-                         const google::protobuf::FieldDescriptor *field);
+                         const google::protobuf::FieldDescriptor *field) const;
 
   void set(void *data, const google::protobuf::Reflection *reflection,
            const google::protobuf::FieldDescriptor *field);
-  void set_repeated(void *data, const google::protobuf::Reflection *reflection,
+  void set_repeated(const void *data,
+                    const google::protobuf::Reflection *reflection,
                     const google::protobuf::FieldDescriptor *field);
 
-  XMSG::Type
-  protoTypeToType(google::protobuf::FieldDescriptor::CppType protoType);
+  XMSG::Type protoTypeToType(
+      google::protobuf::FieldDescriptor::CppType protoType) const noexcept;
 
-  GenericMessage *New(const std::string &type) override {
+  GenericMessage *New(const std::string &type) const override {
     return new ProtoGenericMessage(type);
   }
 

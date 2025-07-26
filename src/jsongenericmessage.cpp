@@ -20,9 +20,9 @@ JSONGenericMessage::JSONGenericMessage() {
 
 JSONGenericMessage::~JSONGenericMessage() {}
 
-const XMSG::member
+const XMSG::RawMemberWrapper
 JSONGenericMessage::get_member(const std::string &member_name,
-                               const Type expected_type) {
+                               const Type expected_type) const {
   (void)expected_type; // may find use in the future
   try {
     auto value = find_member(member_name);
@@ -31,49 +31,48 @@ JSONGenericMessage::get_member(const std::string &member_name,
 
     if (type & XMSG::ARRAY) {
       auto data = extract_array(value, find_member_key(member_name));
-      return {data, type};
+      return build_wrapper(data, type);
     } else {
       auto data = extract(value, find_member_key(member_name));
-      return {data, type};
+      return build_wrapper(data, type);
     }
   } catch (XMSG::BrokenMessage &) {
     throw;
   } catch (std::exception &e) {
-    log("thrown: " + std::string(e.what()), XMSG::LogLevel::DEBUG);
-    return {nullptr, XMSG::NOTSET};
+    return build_wrapper(nullptr, XMSG::NOTSET);
   }
 }
 
 void JSONGenericMessage::set_member(const std::string &member_name,
-                                    XMSG::member new_data) {
-  if (new_data.type & XMSG::Type::ARRAY) {
+                                    const RawMemberWrapper &new_data) {
+  if (new_data.get_type() & XMSG::Type::ARRAY) {
     json_[member_name] = nlohmann::json::array();
 
-    auto type = new_data.type;
-    auto data = new_data.data;
+    auto type = new_data.get_type();
+    auto data = new_data.get_raw();
 
     if (type & XMSG::Type::CHAR) {
-      auto cast_data = static_cast<std::vector<int64_t> *>(data);
+      auto cast_data = static_cast<const std::vector<int64_t> *>(data);
       for (auto &val : *cast_data) {
         json_[member_name].push_back(val);
       }
     } else if (type & XMSG::Type::INT) {
-      auto cast_data = static_cast<std::vector<int64_t> *>(data);
+      auto cast_data = static_cast<const std::vector<int64_t> *>(data);
       for (auto &val : *cast_data) {
         json_[member_name].push_back(val);
       }
     } else if (type & XMSG::Type::UINT) {
-      auto cast_data = static_cast<std::vector<uint64_t> *>(data);
+      auto cast_data = static_cast<const std::vector<uint64_t> *>(data);
       for (auto &val : *cast_data) {
         json_[member_name].push_back(val);
       }
     } else if (type & XMSG::Type::DOUBLE) {
-      auto cast_data = static_cast<std::vector<double> *>(data);
+      auto cast_data = static_cast<const std::vector<double> *>(data);
       for (auto &val : *cast_data) {
         json_[member_name].push_back(val);
       }
     } else if (type & XMSG::Type::STRING) {
-      auto cast_data = static_cast<std::vector<std::string> *>(data);
+      auto cast_data = static_cast<const std::vector<std::string> *>(data);
       for (auto &val : *cast_data) {
         json_[member_name].push_back(val);
       }
@@ -86,7 +85,7 @@ void JSONGenericMessage::set_member(const std::string &member_name,
     //      }
     //    }
     else if (type & XMSG::Type::GENERIC) {
-      auto generic = static_cast<std::vector<GenericMessage *> *>(data);
+      auto generic = static_cast<const std::vector<GenericMessage *> *>(data);
       for (auto &val : *generic) {
         auto jsonmsg = dynamic_cast<JSONGenericMessage *>(val);
         json_[member_name].push_back(jsonmsg->json_);
@@ -97,7 +96,7 @@ void JSONGenericMessage::set_member(const std::string &member_name,
   }
 }
 
-void JSONGenericMessage::copy_from(GenericMessage *message) {
+void JSONGenericMessage::copy_from(const GenericMessage *const message) {
   log("Creating new JSON string from '" + message->get_identifier() +
           "' which has type '" + message->get_type() + "'",
       XMSG::LogLevel::INFO, XMSG::OnceType::UNIQUEONLY);
@@ -147,7 +146,8 @@ void JSONGenericMessage::enumerate_members() {
   }
 }
 
-Type JSONGenericMessage::member_to_type(const nlohmann::json &member) {
+Type JSONGenericMessage::member_to_type(
+    const nlohmann::json &member) const noexcept {
   XMSG::Type type = XMSG::NONE;
 
   nlohmann::json sub = member;
@@ -200,7 +200,7 @@ Type JSONGenericMessage::member_to_type(const nlohmann::json &member) {
 }
 
 void *JSONGenericMessage::extract(const nlohmann::json &member,
-                                  const std::string &key) {
+                                  const std::string &key) const {
   void *data;
 
   if (member.is_number_integer()) {
@@ -235,7 +235,7 @@ void *JSONGenericMessage::extract(const nlohmann::json &member,
 }
 
 void *JSONGenericMessage::extract_array(const nlohmann::json &member,
-                                        const std::string &key) {
+                                        const std::string &key) const {
   auto type = peak_at_type(member);
   if (type & XMSG::NOTSET) {
     return nullptr;
@@ -287,7 +287,8 @@ void *JSONGenericMessage::extract_array(const nlohmann::json &member,
   return data;
 }
 
-Type JSONGenericMessage::peak_at_type(const nlohmann::json &member) {
+Type JSONGenericMessage::peak_at_type(
+    const nlohmann::json &member) const noexcept {
   if (member.empty()) {
     return XMSG::Type::NOTSET;
   }
@@ -297,7 +298,8 @@ Type JSONGenericMessage::peak_at_type(const nlohmann::json &member) {
   return type;
 }
 
-nlohmann::json JSONGenericMessage::find_member(const std::string &member) {
+nlohmann::json
+JSONGenericMessage::find_member(const std::string &member) const {
   for (auto &[key, value] : json_.items()) {
     if (compare(member, key)) {
       return value;
@@ -307,33 +309,34 @@ nlohmann::json JSONGenericMessage::find_member(const std::string &member) {
   throw std::invalid_argument("Unable to find member '" + member + "'");
 }
 
-nlohmann::json JSONGenericMessage::member_to_json(const member &member) {
-  auto type = member.type;
-  auto data = member.data;
+nlohmann::json
+JSONGenericMessage::member_to_json(const XMSG::RawMemberWrapper &member) {
+  auto type = member.get_type();
+  auto data = member.get_raw();
 
   auto j = nlohmann::json::object();
 
   if (type & XMSG::Type::CHAR) {
-    auto cast_data = static_cast<int64_t *>(data);
+    auto cast_data = static_cast<const int64_t *>(data);
     j = *cast_data;
   } else if (type & XMSG::Type::INT) {
-    auto cast_data = static_cast<int64_t *>(data);
+    auto cast_data = static_cast<const int64_t *>(data);
     j = *cast_data;
   } else if (type & XMSG::Type::UINT) {
-    auto cast_data = static_cast<uint64_t *>(data);
+    auto cast_data = static_cast<const uint64_t *>(data);
     j = *cast_data;
   } else if (type & XMSG::Type::DOUBLE) {
-    auto cast_data = static_cast<double *>(data);
+    auto cast_data = static_cast<const double *>(data);
     j = *cast_data;
   } else if (type & XMSG::Type::STRING) {
-    auto cast_data = static_cast<std::string *>(data);
+    auto cast_data = static_cast<const std::string *>(data);
     j = *cast_data;
   } else if (type & XMSG::Type::BOOL) {
-    auto cast_data = static_cast<bool *>(data);
+    auto cast_data = static_cast<const bool *>(data);
     j = *cast_data;
   } else if (type & XMSG::Type::GENERIC) {
-    auto generic = static_cast<GenericMessage *>(data);
-    auto jsonmsg = dynamic_cast<JSONGenericMessage *>(generic);
+    auto generic = static_cast<const GenericMessage *>(data);
+    auto jsonmsg = dynamic_cast<const JSONGenericMessage *>(generic);
 
     j = jsonmsg->json_;
   }
@@ -341,7 +344,8 @@ nlohmann::json JSONGenericMessage::member_to_json(const member &member) {
   return j;
 }
 
-std::string JSONGenericMessage::find_member_key(const std::string &member) {
+std::string
+JSONGenericMessage::find_member_key(const std::string &member) const {
   for (auto &[key, value] : json_.items()) {
     if (compare(member, key)) {
       return key;

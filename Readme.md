@@ -4,3 +4,5 @@ This libary wraps complex types that support code reflection. It allows handling
 - Google Protobuf
 - JSON messages
 - ROS2 messages
+
+Proper instructions on how to use this to come

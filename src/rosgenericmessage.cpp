@@ -56,14 +56,14 @@ XMSG::ROSGenericMessage::~ROSGenericMessage() {
   free(message_);
 }
 
-const XMSG::member
+const XMSG::RawMemberWrapper
 XMSG::ROSGenericMessage::get_member(const std::string &member_name,
-                                    const Type expected_type) {
+                                    const Type expected_type) const {
   return get_member_at(member_name, expected_type, message_);
 }
 
 void XMSG::ROSGenericMessage::set_member(const std::string &member_name,
-                                         XMSG::member data) {
+                                         const RawMemberWrapper &data) {
   set_member_at(member_name, data, message_);
 }
 
@@ -72,8 +72,6 @@ void XMSG::ROSGenericMessage::deep_memcpy_to(void *data) {
     auto member = get_member(memb.member_name, memb.type);
 
     set_member_at(memb.member_name, member, data);
-
-    delete_member(member);
   }
 }
 
@@ -82,8 +80,6 @@ void XMSG::ROSGenericMessage::deep_memcpy_from(const void *data) {
     auto member = get_member_at(memb.member_name, memb.type, data);
 
     set_member(memb.member_name, member);
-
-    delete_member(member);
   }
 }
 
@@ -111,7 +107,8 @@ XMSG::ROSGenericMessage::get_serialised() {
 }
 
 void XMSG::ROSGenericMessage::set_member_at(const std::string &member_name,
-                                            XMSG::member data, void *at) {
+                                            const XMSG::RawMemberWrapper &data,
+                                            void *at) {
   initialised_ = true;
 
   auto pos = find_member_pos(member_name);
@@ -125,20 +122,22 @@ void XMSG::ROSGenericMessage::set_member_at(const std::string &member_name,
   auto sub = static_cast<char *>(at) + member.offset_;
 
   if (member.is_array_) {
-    set_repeated(member, sub, data.data);
+    set_repeated(member, sub, data.get_raw());
   } else {
-    set(member, sub, data.data);
+    set(member, sub, data.get_raw());
   }
 }
 
-const XMSG::member XMSG::ROSGenericMessage::get_member_at(
-    const std::string &member_name, const Type expected_type, const void *at) {
+const XMSG::RawMemberWrapper
+XMSG::ROSGenericMessage::get_member_at(const std::string &member_name,
+                                       const Type expected_type,
+                                       const void *at) const {
   (void)expected_type; // unused for now, may be used for type safety
 
   auto pos = find_member_pos(member_name);
 
   if (pos == -1) {
-    return {nullptr, XMSG::Type::NOTSET};
+    return build_wrapper(nullptr, XMSG::Type::NOTSET);
   }
 
   auto member = intro_msg_->members_[pos];
@@ -155,7 +154,7 @@ const XMSG::member XMSG::ROSGenericMessage::get_member_at(
     data = extract(member, sub);
   }
 
-  return {data, type};
+  return build_wrapper(data, type);
 }
 
 void XMSG::ROSGenericMessage::cleanup(
@@ -340,7 +339,7 @@ void XMSG::ROSGenericMessage::enumerate_members() {
 
 void *XMSG::ROSGenericMessage::extract(
     const rosidl_typesupport_introspection_cpp::MessageMember &member,
-    const void *sub_msg) {
+    const void *sub_msg) const {
   auto type = member.type_id_;
   void *data;
 
@@ -426,7 +425,7 @@ void *XMSG::ROSGenericMessage::extract(
 
 void *XMSG::ROSGenericMessage::extract_array(
     const rosidl_typesupport_introspection_cpp::MessageMember &member,
-    const void *sub_msg) {
+    const void *sub_msg) const {
   auto sz_func = member.size_function;
   auto gt_func = member.get_const_function; // array getter function
   auto type = member.type_id_;
@@ -774,7 +773,8 @@ void XMSG::ROSGenericMessage::set_repeated(
   } // HACKS END HERE.
 }
 
-XMSG::Type XMSG::ROSGenericMessage::member_to_type(uint8_t type) {
+XMSG::Type
+XMSG::ROSGenericMessage::member_to_type(uint8_t type) const noexcept {
   using namespace rosidl_typesupport_introspection_cpp;
 
   if (type == ROS_TYPE_STRING) {
@@ -814,7 +814,8 @@ XMSG::Type XMSG::ROSGenericMessage::member_to_type(uint8_t type) {
   return XMSG::Type::NOTSET;
 }
 
-int XMSG::ROSGenericMessage::find_member_pos(const std::string &member_name) {
+int XMSG::ROSGenericMessage::find_member_pos(
+    const std::string &member_name) const {
   for (uint32_t x = 0; x < intro_msg_->member_count_;
        x++) { // iterate through all ros message members
     auto member = intro_msg_->members_[x];

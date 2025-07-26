@@ -3,8 +3,8 @@
 <package format="3">
   <name>xmsg</name>
   <version>0.1.0</version>
-  <description>Library capable of wrapping complex types that support introspection</description>
-  <maintainer email="denis.draca@gmail.com">Denis Draca</maintainer>
+  <description>Library capable of wrapping complex types that support reflection</description>
+  <maintainer email="denis.draca@protonmail.com">Denis Draca</maintainer>
   <license>MIT</license>
 
   <depend>rclcpp</depend>
